@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+
+    <TextView
+        android:id="@+id/textView"
+        style="@style/Widget.AppCompat.TextView"
+        android:layout_width="212dp"
+        android:layout_height="46dp"
+        android:layout_marginTop="60dp"
+        android:text="RiPO 248838"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:textColor="@color/cardview_dark_background"
+        android:textSize="36sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="183dp"
+        android:layout_height="84dp"
+        android:layout_marginTop="20dp"
+        android:text="Wykrywanie pojazdów oznakowanych"
+        android:textAlignment="center"
+        android:textSize="20sp"
+        app:layout_constraintBottom_toTopOf="@+id/linearLayout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView"
+        app:layout_constraintVertical_bias="0.369" />
+
+    <LinearLayout
+        android:id="@+id/linearLayout"
+        android:layout_width="262dp"
+        android:layout_height="229dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.496"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.618">
+
+        <Switch
+            android:id="@+id/soundSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="68dp"
+            android:text="Efekty dźwiękowe"
+            tools:checked="true" />
+
+        <TableRow
+            android:layout_width="match_parent"
+            android:layout_height="60dp">
+
+            <TextView
+                android:id="@+id/textView3"
+                android:layout_width="178dp"
+                android:layout_height="wrap_content"
+                android:text="Metoda klasyfikacji:"
+                android:textColor="#000000"
+                android:textSize="14sp" />
+
+            <ToggleButton
+                android:id="@+id/cascadeTypeToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Typ"
+                android:textOff="HAAR"
+                android:textOn="LBP" />
+        </TableRow>
+
+        <Button
+            android:id="@+id/acceptButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Uruchom" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
