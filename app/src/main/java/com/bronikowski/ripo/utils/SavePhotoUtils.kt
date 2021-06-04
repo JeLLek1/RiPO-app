@@ -8,7 +8,6 @@ import android.provider.MediaStore
 import org.opencv.android.Utils
 import org.opencv.core.CvException
 import org.opencv.core.Mat
-import org.opencv.imgproc.Imgproc
 import java.io.File
 import java.io.File.separator
 import java.io.FileOutputStream

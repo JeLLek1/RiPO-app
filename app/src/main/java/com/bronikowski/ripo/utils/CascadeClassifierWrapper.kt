@@ -16,36 +16,24 @@ import org.opencv.imgproc.Imgproc
 
 class CascadeClassifierWrapper {
     private val TAG = MainActivity::class.java.simpleName
-    private var mCascadeFile: File? = null;
+    private var file: File? = null;
     private var cascade: CascadeClassifier? = null;
-    private lateinit var _color: Scalar;
-    private lateinit var _name: String
+    private var _color: Scalar;
+    private var _name: String
     private var oldRect : Array<Rect>? = null
 
     constructor(@RawRes rawId: Int, name: String, color: Scalar, context: Context){
         _color = color
         _name = name
-        try {
-            val rawRes = context.resources.openRawResource(rawId)
-            val cascadeDir = context.getDir("cascade-"+name, AppCompatActivity.MODE_PRIVATE)
-            mCascadeFile = File(cascadeDir, "cascade-"+name+".xml")
-            val os: FileOutputStream = FileOutputStream(mCascadeFile)
-            val buffer = ByteArray(4096)
-            var bytesRead: Int
-            while (rawRes.read(buffer).also { bytesRead = it } != -1) {
-                os.write(buffer, 0, bytesRead)
-            }
-            rawRes.close()
-            os.close()
-            cascade = CascadeClassifier(mCascadeFile!!.getAbsolutePath())
+        if(file==null){
+            file = SaveFileUtils.saveFile(rawId, "cascade-"+name, "cascade-"+name+".xml", context)
+        }
+        if(file!=null) {
+            cascade = CascadeClassifier(file!!.getAbsolutePath())
             if (cascade!!.empty()) {
                 Log.e(TAG, "Failed to load cascade classifier")
                 cascade = null
-            } else Log.i(TAG, "Loaded cascade classifier from " + mCascadeFile!!.getAbsolutePath())
-            cascadeDir.delete()
-        } catch (e: IOException) {
-            e.printStackTrace()
-            Log.e(TAG, "Failed to load cascade. Exception thrown: $e")
+            } else Log.i(TAG, "Loaded cascade classifier from " + file!!.getAbsolutePath())
         }
     }
 
@@ -53,7 +41,7 @@ class CascadeClassifierWrapper {
         var newRect: Boolean = false
         if(cascade != null){
             val rect: MatOfRect = MatOfRect();
-            cascade!!.detectMultiScale(matGray, rect, 1.1, 3, 0, Size(50.0, 50.0), Size());
+            cascade!!.detectMultiScale(matGray, rect, 1.1, 3, 0, Size(200.0, 200.0), Size());
             val rectArray: Array<Rect> = rect.toArray()
 
             if(rectArray.size >0 && oldRect == null){

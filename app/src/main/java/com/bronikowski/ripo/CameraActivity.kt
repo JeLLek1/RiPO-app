@@ -13,15 +13,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.bronikowski.ripo.utils.CascadeClassifierWrapper
 import com.bronikowski.ripo.utils.SavePhotoUtils
+import com.bronikowski.ripo.utils.Yolov3Wrapper
 import org.opencv.android.BaseLoaderCallback
 import org.opencv.android.CameraBridgeViewBase
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
-import org.opencv.objdetect.CascadeClassifier
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 
 
 class CameraActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
@@ -31,11 +28,12 @@ class CameraActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewLis
     private val UPDATE_TIME_PERIOD = 60000
     private lateinit var cameraView: CameraBridgeViewBase
     private var soundEffects: Boolean = true
-    private var isLBP : Boolean = true
+    private var detectionMethod : String = "LBP"
     private var permissionSavePhotos = false
-    private lateinit var policeCascade: CascadeClassifierWrapper
-    private lateinit var firetruckCascade: CascadeClassifierWrapper
-    private lateinit var ambulanceCascade: CascadeClassifierWrapper
+    private var policeCascade: CascadeClassifierWrapper? = null
+    private var firetruckCascade: CascadeClassifierWrapper? = null
+    private var ambulanceCascade: CascadeClassifierWrapper? = null
+    private var yolov3 : Yolov3Wrapper? = null
     private var lastTimeSave : Long = 0;
 
     var baseLoaderCallback: BaseLoaderCallback = object : BaseLoaderCallback(this) {
@@ -46,15 +44,24 @@ class CameraActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewLis
             when (status) {
                 SUCCESS -> {
                     Log.i(TAG, "OpenCV loaded successfully")
-                    if(isLBP){
-                        policeCascade = CascadeClassifierWrapper(R.raw.police_cascade, "policja", Scalar(0.0, 0.0, 255.0, 255.0), getApplicationContext())
-                        firetruckCascade = CascadeClassifierWrapper(R.raw.fire_cascade, "straz", Scalar(255.0, 0.0, 0.0, 255.0), getApplicationContext())
-                        ambulanceCascade = CascadeClassifierWrapper(R.raw.ambulance_cascade, "ambulans", Scalar(0.0, 255.0, 0.0, 255.0), getApplicationContext())
-                    }else{
-                        policeCascade = CascadeClassifierWrapper(R.raw.police_cascade_haar, "policja", Scalar(0.0, 0.0, 255.0, 255.0), getApplicationContext())
-                        firetruckCascade = CascadeClassifierWrapper(R.raw.fire_cascade_haar, "straz", Scalar(255.0, 0.0, 0.0, 255.0), getApplicationContext())
-                        ambulanceCascade = CascadeClassifierWrapper(R.raw.ambulance_cascade_haar, "ambulans", Scalar(0.0, 255.0, 0.0, 255.0), getApplicationContext())
-
+                    when(detectionMethod){
+                        "LBP" -> {
+                            policeCascade = CascadeClassifierWrapper(R.raw.police_cascade, "policja", Scalar(0.0, 0.0, 255.0, 255.0), getApplicationContext())
+                            firetruckCascade = CascadeClassifierWrapper(R.raw.fire_cascade, "straz", Scalar(255.0, 0.0, 0.0, 255.0), getApplicationContext())
+                            ambulanceCascade = CascadeClassifierWrapper(R.raw.ambulance_cascade, "ambulans", Scalar(0.0, 255.0, 0.0, 255.0), getApplicationContext())
+                        }
+                        "HAAR" -> {
+                            policeCascade = CascadeClassifierWrapper(R.raw.police_cascade_haar, "policja", Scalar(0.0, 0.0, 255.0, 255.0), getApplicationContext())
+                            firetruckCascade = CascadeClassifierWrapper(R.raw.fire_cascade_haar, "straz", Scalar(255.0, 0.0, 0.0, 255.0), getApplicationContext())
+                            ambulanceCascade = CascadeClassifierWrapper(R.raw.ambulance_cascade_haar, "ambulans", Scalar(0.0, 255.0, 0.0, 255.0), getApplicationContext())
+                        }
+                        "Yolov3" -> {
+                            yolov3 = Yolov3Wrapper(R.raw.vehicles_yolo3_cfg,
+                                    R.raw.vehicles_yolo3_weights,
+                                    "vehicles", arrayListOf("ambulans", "policja", "straz"),
+                                    arrayListOf(Scalar(0.0, 255.0, 0.0, 255.0),Scalar(0.0, 0.0, 255.0, 255.0), Scalar(255.0, 0.0, 0.0, 255.0)),
+                                    getApplicationContext())
+                        }
                     }
 
                     cameraView.enableView()
@@ -71,14 +78,14 @@ class CameraActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewLis
         setContentView(R.layout.activity_camera)
 
         cameraView = findViewById(R.id.camera_view)
+        askForPermission()
         cameraView.setVisibility(SurfaceView.VISIBLE)
         cameraView.setCvCameraViewListener(this)
         cameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
 
-        askForPermission()
-
         soundEffects = intent.getBooleanExtra("soundEffects", true)
-        isLBP = intent.getBooleanExtra("cascadeType", true)
+        detectionMethod = intent.getStringExtra("detectionMethod")
+        Log.d(TAG, detectionMethod)
     }
 
     override fun onResume() {
@@ -111,25 +118,53 @@ class CameraActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewLis
             }
         }
 
-        var mGray: Mat = Mat();
-        Imgproc.cvtColor(mat, mGray, Imgproc.COLOR_RGBA2GRAY);
-        if(isLBP){
-            Imgproc.equalizeHist(mGray, mGray);
-        }
-        val (mat1, isNewPolice) = policeCascade.applyDetection(mat, mGray);
-        val (mat2, isNewFire) = firetruckCascade.applyDetection(mat1, mGray);
-        val (mat3, isNewAmbulance) = ambulanceCascade.applyDetection(mat2, mGray);
-        if(isNewPolice || isNewFire || isNewAmbulance){
-            val now: Long = System.currentTimeMillis()
-            Log.d(TAG, (now - lastTimeSave).toString())
-            if(now - lastTimeSave > UPDATE_TIME_PERIOD){
-                lastTimeSave = now
-                makeSound();
-                SavePhotoUtils.saveImage(mat3, getApplicationContext())
-                Log.d(TAG, "Zapisańsko")
+        var isNew = false;
+        when(detectionMethod){
+            "LBP" -> {
+                var mGray: Mat = Mat();
+                Imgproc.cvtColor(mat, mGray, Imgproc.COLOR_RGBA2GRAY);
+                Imgproc.equalizeHist(mGray, mGray);
+                val (mat1, isNewPolice) = policeCascade!!.applyDetection(mat, mGray);
+                val (mat2, isNewFire) = firetruckCascade!!.applyDetection(mat1, mGray);
+                val (mat3, isNewAmbulance) = ambulanceCascade!!.applyDetection(mat2, mGray);
+                if(isNewPolice || isNewFire || isNewAmbulance){
+                    handleNew(mat3)
+                }
+                return mat3
+            }
+            "HAAR" -> {
+                var mGray: Mat = Mat();
+                Imgproc.cvtColor(mat, mGray, Imgproc.COLOR_RGBA2GRAY);
+                val (mat1, isNewPolice) = policeCascade!!.applyDetection(mat, mGray);
+                val (mat2, isNewFire) = firetruckCascade!!.applyDetection(mat, mGray);
+                val (mat3, isNewAmbulance) = ambulanceCascade!!.applyDetection(mat2, mGray);
+                if(isNewPolice || isNewFire || isNewAmbulance){
+                    handleNew(mat3)
+                }
+                return mat3
+            }
+            "Yolov3" -> {
+                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGBA2RGB);
+                val (mat, isNew) = yolov3!!.applyDetection(mat);
+                if(isNew){
+                    handleNew(mat)
+                }
+                return mat;
             }
         }
-        return mat3
+        Log.d(TAG, "No detection")
+        return mat;
+
+    }
+
+    private fun handleNew(mat: Mat){
+        val now: Long = System.currentTimeMillis()
+        if(now - lastTimeSave > UPDATE_TIME_PERIOD){
+            lastTimeSave = now
+            makeSound();
+            SavePhotoUtils.saveImage(mat, getApplicationContext())
+            Log.d(TAG, "Zapisywanie")
+        }
     }
 
     private fun makeSound(){
